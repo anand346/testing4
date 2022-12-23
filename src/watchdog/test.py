@@ -18,27 +18,47 @@ class Watcher:
 
     def __init__(self):
         self.observer = Observer()
-        if(options.branch == None) :
-            subprocess.call('git add .',shell=True)    
+
+        val = subprocess.check_output('git remote -v',shell=True)
+        if('https://' in val.decode('utf-8').split()[1]) :
+
+            branchName = subprocess.check_output('git rev-parse --abbrev-ref HEAD',shell=True)
+            branchName = branchName.decode()
+
+            if(options.source != "none") :
+                print("https:// block source",options.source)
+                subprocess.call(f'git remote set-url origin {options.source}',shell=True)     
+
+            if(options.branch != "none") :
+                print("https:// block branch")
+                branchName = options.branch
+                subprocess.call(f'git checkout -b {branchName}',shell=True)
+
+            subprocess.call('git add .',shell=True)     
             subprocess.call('git commit -m "automated" ',shell=True)    
-            subprocess.call(f'git push -u origin master',shell=True)    
+            subprocess.call(f'git push -u origin {branchName}',shell=True)  
+
         else :
-            subprocess.call('git init',shell=True)
-            subprocess.call('git add .',shell=True)
-            subprocess.call('git commit -m "automated" ',shell=True)
-            subprocess.call(f'git remote add origin {options.source}',shell=True)
-            subprocess.call(f'git push -u origin {options.branch}',shell=True)
+            print("https else block")
+            if(options.source != "none" and options.branch != "none") :
+                subprocess.call('git init',shell=True)
+                subprocess.call('git add .',shell=True)
+                subprocess.call('git commit -m "automated" ',shell=True)
+                subprocess.call(f'git remote add origin {options.source}',shell=True)
+                subprocess.call(f'git push -u origin {options.branch}',shell=True)
+            
 
     def run(self):
         event_handler = Handler()
+
         self.observer.schedule(event_handler, self.DIRECTORY_TO_WATCH, recursive=True)
         self.observer.start()
         try:
             while True:
-                time.sleep(5)
-        except:
+                time.sleep(1)
+        except KeyboardInterrupt:
             self.observer.stop()
-            print("Error")
+            print("exit")
 
 
         self.observer.join()
@@ -48,38 +68,22 @@ class Handler(FileSystemEventHandler):
 
     @staticmethod
     def on_any_event(event):
-        if event.is_directory:
+        if(".git" in event.src_path) : 
             return None
 
-        elif event.event_type == 'created':
-            # Take any action here when a file is first created.
-            
-            if(options.branch == None) :
+        elif event.is_directory:
+            return None
+
+        elif (event.event_type == 'created' or event.event_type == 'modified'):
+            val = subprocess.check_output('git remote -v',shell=True)
+            if('https://' in val.decode('utf-8').split()[1]) :
+                print("event is : ",event.event_type)
+                branchName = subprocess.check_output('git rev-parse --abbrev-ref HEAD',shell=True)
+                branchName = branchName.decode()
+                subprocess.call(f'git push -u origin {branchName}',shell=True)  
                 subprocess.call('git add .',shell=True)    
                 subprocess.call('git commit -m "automated" ',shell=True)    
-                subprocess.call(f'git push -u origin master',shell=True)    
-            else :
-                subprocess.call('git init',shell=True)
-                subprocess.call('git add .',shell=True)
-                subprocess.call('git commit -m "automated" ',shell=True)
-                subprocess.call(f'git remote add origin {options.source}',shell=True)
-                subprocess.call(f'git push -u origin {options.branch}',shell=True)
-
-
-        elif event.event_type == 'modified':
-            # Taken any action here when a file is modified.
-            if(options.branch == None) :
-                subprocess.call('git add .',shell=True)    
-                subprocess.call('git commit -m "automated" ',shell=True)    
-                subprocess.call(f'git push -u origin master',shell=True)    
-            else :
-                subprocess.call('git init',shell=True)
-                subprocess.call('git add .',shell=True)
-                subprocess.call('git commit -m "automated" ',shell=True)
-                subprocess.call(f'git remote add origin {options.source}',shell=True)
-                subprocess.call(f'git push -u origin {options.branch}',shell=True)
-
-
+                subprocess.call(f'git push -u origin {branchName}',shell=True)    
 
 if __name__ == '__main__':
     w = Watcher()

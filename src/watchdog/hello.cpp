@@ -2,5 +2,5 @@
 using namespace std;
 
 int main(){
-    cout<<"world world";
+    cout<<"there we go hey";
 }
